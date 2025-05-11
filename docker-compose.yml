@@ -1,0 +1,61 @@
+version: '3.9'
+services:
+  app:
+    environment:
+      - spring.jpa.hibernate.ddl-auto=create
+      - spring.datasource.url=jdbc:postgresql://postgres/users-subscriptions-db?autoReconnect=true
+      - spring.datasource.username=postgres
+      - spring.datasource.password=postgres
+    build: .
+    ports:
+      - "8080:8080"
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: '2g'
+        reservations:
+          cpus: '1'
+          memory: '1g'
+    depends_on:
+      postgres:
+        condition: service_healthy
+  postgres:
+    image: postgres:latest
+    container_name: postgres_container
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: users-subscriptions-db
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data/pgdata
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    command: >
+      postgres -c max_connections=1000
+               -c shared_buffers=256MB
+               -c effective_cache_size=768MB
+               -c maintenance_work_mem=64MB
+               -c checkpoint_completion_target=0.7
+               -c wal_buffers=16MB
+               -c default_statistics_target=100
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres_user -d users-subscriptions-db" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+    tty: true
+    stdin_open: true
+
+volumes:
+  pgdata:
